@@ -7,26 +7,24 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract Bountyloop is Ownable {
     using Counters for Counters.Counter;
 
-    event BountyStarted(bytes32 bountyId, address account);
-    event WithdrawFunds(bytes32 bountyId, address charity, uint256 amount);
-    event BountyDonated(bytes32 bountyId, address donor, uint256 amount);
+    event BountyStarted(bytes32 indexed bountyId, address account);
+    event WithdrawFunds(bytes32 indexed bountyId, address charity, uint256 amount);
+    event BountyDonated(bytes32 indexed bountyId, address donor, uint256 amount);
 
     Counters.Counter public _campaignCount;
 
     struct Campaign {
+        uint256 fundsRaised;
+        uint256 balance;
+        bool isLive;
         string title;
         string imgUrl;
         string description;
-        uint256 fundsRaised;
-        bool isLive;
         address account;
-        uint256 balance;
     }
 
     mapping(bytes32 => Campaign) public _campaigns;
     mapping(address => mapping(bytes32 => uint256)) public userCampaignDonations;
-
-    constructor() {}
 
     function startCampaign(
         address account,
@@ -89,7 +87,9 @@ contract Bountyloop is Ownable {
     function withdrawCampaignFunds(bytes32 bountyId) public {
         Campaign storage campaign = _campaigns[bountyId];
         require(campaign.balance > 0, "No funds to withdraw");
-                payable(campaign.account).transfer(campaign.balance);
-                emit WithdrawFunds(bountyId, campaign.account, campaign.balance);
+        campaign.balance = 0;
+        (bool sent, ) = campaign.account.call{value: campaign.balance}("");
+        require(sent, 'tranfer failed');
+        emit WithdrawFunds(bountyId, campaign.account, campaign.balance);
     }   
 }
